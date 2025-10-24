@@ -17,28 +17,52 @@ model User {
 }
 
 model City {
-  id     String  @id @default(cuid())
-  name   String
-  state  String
-  active Boolean @default(true)
+  id        String  @id @default(cuid())
+  name      String
+  state     String
+  active    Boolean @default(true)
+  isAirport Boolean @default(false)
 
   // Back-relations for Booking
   bookingsFrom Booking[] @relation("FromCity")
   bookingsTo   Booking[] @relation("ToCity")
 
-  // Helpful for name+state lookups
+  // City Routes for available connections
+  routesFrom CityRoute[] @relation("FromCityRoute")
+  routesTo   CityRoute[] @relation("ToCityRoute")
+
   @@index([name, state])
 }
 
+model CityRoute {
+  id           String  @id @default(cuid())
+  fromCityId   String
+  toCityId     String
+  distanceKm   Int
+  durationMin  Int
+  active       Boolean @default(true)
+  tripTypes    String  // JSON array of supported trip types: ["ONE_WAY", "ROUND_TRIP"]
+
+  fromCity City @relation("FromCityRoute", fields: [fromCityId], references: [id])
+  toCity   City @relation("ToCityRoute", fields: [toCityId], references: [id])
+
+  // Pricing rules for this specific route
+  routePricing RoutePricing[]
+
+  @@unique([fromCityId, toCityId])
+}
+
 model CabType {
-  id      String  @id @default(cuid())
-  name    String
-  seats   Int
-  luggage Int
-  image   String?
-  active  Boolean @default(true)
+  id       String  @id @default(cuid())
+  name     String
+  seats    Int
+  luggage  Int
+  image    String?
+  active   Boolean @default(true)
+  features String? // JSON array of features like "AC", "GPS", etc.
 
   pricingRules PricingRule[]
+  routePricing RoutePricing[]
   bookings     Booking[]
 
   @@unique([name])
@@ -47,29 +71,52 @@ model CabType {
 model PricingRule {
   id          String   @id @default(cuid())
   cabTypeId   String
+  tripType    String   // "ONE_WAY", "ROUND_TRIP", "LOCAL", "AIRPORT"
   baseFare    Int
   perKm       Int
   perMinute   Int
   minKmPerDay Int      @default(0)
-  surgeJson   String?  // was Json?
+  surgeJson   String?
   validFrom   DateTime?
   validTo     DateTime?
   active      Boolean  @default(true)
 
   cabType CabType @relation(fields: [cabTypeId], references: [id])
 
-  // If business logic requires exactly one rule per cab type, keep this:
-  @@unique([cabTypeId])
+  @@unique([cabTypeId, tripType])
+}
 
-  // Otherwise, remove the @@unique and consider scoped uniqueness, e.g. ([cabTypeId, validFrom, validTo])
+// Route-specific pricing controlled by admin
+model RoutePricing {
+  id           String   @id @default(cuid())
+  routeId      String
+  fromCityId   String   // Denormalized for fast queries
+  toCityId     String   // Denormalized for fast queries
+  cabTypeId    String
+  tripType     String   // "ONE_WAY", "ROUND_TRIP"
+  price        Int      // Fixed price for this route and cab type
+  active       Boolean  @default(true)
+  validFrom    DateTime?
+  validTo      DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  route   CityRoute @relation(fields: [routeId], references: [id])
+  cabType CabType   @relation(fields: [cabTypeId], references: [id])
+
+  @@unique([fromCityId, toCityId, cabTypeId, tripType])
+  @@index([routeId])
+  @@index([fromCityId, toCityId])
 }
 
 model Booking {
   id            String   @id @default(cuid())
-  fromCityId    String
-  toCityId      String
+  tripType      String   // "ONE_WAY", "ROUND_TRIP", "LOCAL", "AIRPORT"
+  fromCityId    String?  // Nullable for local trips
+  toCityId      String?  // Nullable for local trips
   startAt       DateTime
-  endAt         DateTime
+  endAt         DateTime?
+  returnAt      DateTime? // For round trips
   cabTypeId     String
   distanceKm    Int
   durationMin   Int
@@ -78,21 +125,42 @@ model Booking {
   customerPhone String
   customerEmail String?
   pickupAddress String?
+  dropAddress   String?
   status        String   @default("pending")
   paymentRef    String?
   createdAt     DateTime @default(now())
 
-  fromCity City    @relation("FromCity", fields: [fromCityId], references: [id])
-  toCity   City    @relation("ToCity", fields: [toCityId], references: [id])
+  fromCity City?   @relation("FromCity", fields: [fromCityId], references: [id])
+  toCity   City?   @relation("ToCity", fields: [toCityId], references: [id])
   cabType  CabType @relation(fields: [cabTypeId], references: [id])
 
   @@index([fromCityId, toCityId, startAt])
   @@index([cabTypeId])
+  @@index([tripType])
+}
+
+model Inquiry {
+  id            String   @id @default(cuid())
+  tripType      String
+  fromLocation  String
+  toLocation    String
+  startDate     DateTime
+  endDate       DateTime?
+  customerName  String
+  customerPhone String
+  customerEmail String
+  pickupAddress String?
+  dropAddress   String?
+  requirements  String?
+  status        String   @default("pending") // pending, contacted, converted, closed
+  createdAt     DateTime @default(now())
+
+  @@index([tripType, status])
 }
 
 model Setting {
   id        String   @id @default(cuid())
   key       String   @unique
-  valueJson String   // was Json
+  valueJson String
   updatedAt DateTime @updatedAt
 }

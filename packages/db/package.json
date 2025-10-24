@@ -10,7 +10,8 @@
   },
   "scripts": {
     "prisma": "prisma",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "tsx scripts/reset-db.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
