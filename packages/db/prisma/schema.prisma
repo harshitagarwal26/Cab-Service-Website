@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  name           String?
+  hashedPassword String
+  role           String   @default("admin")
+  createdAt      DateTime @default(now())
+}
+
+model City {
+  id     String  @id @default(cuid())
+  name   String
+  state  String
+  active Boolean @default(true)
+
+  // Back-relations for Booking
+  bookingsFrom Booking[] @relation("FromCity")
+  bookingsTo   Booking[] @relation("ToCity")
+
+  // Helpful for name+state lookups
+  @@index([name, state])
+}
+
+model CabType {
+  id      String  @id @default(cuid())
+  name    String
+  seats   Int
+  luggage Int
+  image   String?
+  active  Boolean @default(true)
+
+  pricingRules PricingRule[]
+  bookings     Booking[]
+
+  @@unique([name])
+}
+
+model PricingRule {
+  id          String   @id @default(cuid())
+  cabTypeId   String
+  baseFare    Int
+  perKm       Int
+  perMinute   Int
+  minKmPerDay Int      @default(0)
+  surgeJson   String?  // was Json?
+  validFrom   DateTime?
+  validTo     DateTime?
+  active      Boolean  @default(true)
+
+  cabType CabType @relation(fields: [cabTypeId], references: [id])
+
+  // If business logic requires exactly one rule per cab type, keep this:
+  @@unique([cabTypeId])
+
+  // Otherwise, remove the @@unique and consider scoped uniqueness, e.g. ([cabTypeId, validFrom, validTo])
+}
+
+model Booking {
+  id            String   @id @default(cuid())
+  fromCityId    String
+  toCityId      String
+  startAt       DateTime
+  endAt         DateTime
+  cabTypeId     String
+  distanceKm    Int
+  durationMin   Int
+  priceQuote    Int
+  customerName  String
+  customerPhone String
+  customerEmail String?
+  pickupAddress String?
+  status        String   @default("pending")
+  paymentRef    String?
+  createdAt     DateTime @default(now())
+
+  fromCity City    @relation("FromCity", fields: [fromCityId], references: [id])
+  toCity   City    @relation("ToCity", fields: [toCityId], references: [id])
+  cabType  CabType @relation(fields: [cabTypeId], references: [id])
+
+  @@index([fromCityId, toCityId, startAt])
+  @@index([cabTypeId])
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  valueJson String   // was Json
+  updatedAt DateTime @updatedAt
+}

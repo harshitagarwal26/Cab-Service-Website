@@ -1,0 +1,22 @@
+{
+  "name": "cab-booking",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "next dev --turbo -p 3000 apps/web",
+    "dev:admin": "next dev --turbo -p 3001 apps/admin",
+    "dev": "concurrently -k -n web,admin -c green,blue \"pnpm -C apps/web dev\" \"pnpm -C apps/admin dev\"",
+    "build": "pnpm -C apps/web build && pnpm -C apps/admin build",
+    "start": "concurrently -k -n web,admin -c green,blue \"pnpm -C apps/web start -p 3000\" \"pnpm -C apps/admin start -p 3001\"",
+    "db:push": "pnpm -C packages/db prisma db push",
+    "db:migrate": "pnpm -C packages/db prisma migrate dev --name init",
+    "db:seed": "pnpm -C packages/db prisma db seed"
+  },
+  "devDependencies": {
+    "concurrently": "8.2.2",
+    "typescript": "5.5.4"
+  }
+}

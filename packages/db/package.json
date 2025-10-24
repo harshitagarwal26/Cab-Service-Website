@@ -1,0 +1,21 @@
+{
+  "name": "@cab/db",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@prisma/client": "5.20.0",
+    "bcryptjs": "2.4.3",
+    "prisma": "5.20.0"
+  },
+  "scripts": {
+    "prisma": "prisma",
+    "db:seed": "tsx prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
+  }
+}
