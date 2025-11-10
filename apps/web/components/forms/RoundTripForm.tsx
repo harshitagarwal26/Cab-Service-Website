@@ -2,18 +2,28 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import CitySearchDropdown from './CitySearchDropdown';
 
 interface City {
   id: string;
   name: string;
   state: string;
-  active: boolean;
   isAirport: boolean;
+  active: boolean;
 }
 
 interface RoundTripFormProps {
   cities: City[];
 }
+
+const POPULAR_CITY_IDS = [
+  // Replace with actual popular city IDs from your cities data
+  '1', // Mumbai
+  '2', // Delhi
+  '3', // Bangalore
+  '4', // Chennai
+  '5', // Kolkata
+];
 
 export default function RoundTripForm({ cities }: RoundTripFormProps) {
   const router = useRouter();
@@ -69,7 +79,7 @@ export default function RoundTripForm({ cities }: RoundTripFormProps) {
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleChange = (field: keyof typeof formData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -77,43 +87,25 @@ export default function RoundTripForm({ cities }: RoundTripFormProps) {
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid md:grid-cols-2 gap-6">
         {/* From City */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
-            From
-          </label>
-          <select
-            value={formData.from}
-            onChange={(e) => handleInputChange('from', e.target.value)}
-            required
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Select pickup city</option>
-            {cities.map((city) => (
-              <option key={city.id} value={city.id}>
-                {city.name}, {city.state}
-              </option>
-            ))}
-          </select>
+        <div>
+          <CitySearchDropdown
+            cities={cities}
+            popularCityIds={POPULAR_CITY_IDS}
+            label="From"
+            selectedCityId={formData.from}
+            onChange={value => handleChange('from', value)}
+          />
         </div>
 
         {/* To City */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">
-            To
-          </label>
-          <select
-            value={formData.to}
-            onChange={(e) => handleInputChange('to', e.target.value)}
-            required
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Select destination city</option>
-            {cities.map((city) => (
-              <option key={city.id} value={city.id}>
-                {city.name}, {city.state}
-              </option>
-            ))}
-          </select>
+        <div>
+          <CitySearchDropdown
+            cities={cities}
+            popularCityIds={POPULAR_CITY_IDS}
+            label="To"
+            selectedCityId={formData.to}
+            onChange={value => handleChange('to', value)}
+          />
         </div>
 
         {/* Departure Date */}
@@ -124,7 +116,7 @@ export default function RoundTripForm({ cities }: RoundTripFormProps) {
           <input
             type="date"
             value={formData.startDate}
-            onChange={(e) => handleInputChange('startDate', e.target.value)}
+            onChange={(e) => handleChange('startDate', e.target.value)}
             required
             min={new Date().toISOString().split('T')[0]}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -139,7 +131,7 @@ export default function RoundTripForm({ cities }: RoundTripFormProps) {
           <input
             type="time"
             value={formData.startTime}
-            onChange={(e) => handleInputChange('startTime', e.target.value)}
+            onChange={(e) => handleChange('startTime', e.target.value)}
             required
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
@@ -153,7 +145,7 @@ export default function RoundTripForm({ cities }: RoundTripFormProps) {
           <input
             type="date"
             value={formData.returnDate}
-            onChange={(e) => handleInputChange('returnDate', e.target.value)}
+            onChange={(e) => handleChange('returnDate', e.target.value)}
             required
             min={formData.startDate || new Date().toISOString().split('T')[0]}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -168,7 +160,7 @@ export default function RoundTripForm({ cities }: RoundTripFormProps) {
           <input
             type="time"
             value={formData.returnTime}
-            onChange={(e) => handleInputChange('returnTime', e.target.value)}
+            onChange={(e) => handleChange('returnTime', e.target.value)}
             required
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
