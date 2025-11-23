@@ -47,9 +47,13 @@ export async function POST(request: NextRequest) {
       price: price.toString(),
       distance: route.distanceKm.toString(),
       duration: route.durationMin.toString(),
+      
     });
 
-    return NextResponse.redirect(new URL(`/booking?${params.toString()}`, request.url));
+    return NextResponse.redirect(
+      new URL(`/booking?${params.toString()}`, request.url),
+      { status: 303 } 
+    );
   } catch (error) {
     console.error('Error processing booking:', error);
     return NextResponse.json(
