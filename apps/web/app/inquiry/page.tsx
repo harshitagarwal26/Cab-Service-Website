@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import PhoneInput from '../../components/ui/PhoneInput';
 
 export default function InquiryPage() {
   const searchParams = useSearchParams();
@@ -21,6 +22,7 @@ export default function InquiryPage() {
     customerName: '',
     customerEmail: '',
     customerPhone: '',
+    countryCode: '+91',
     pickupAddress: '',
     dropAddress: '',
     requirements: '',
@@ -44,7 +46,12 @@ export default function InquiryPage() {
           startTime,
           returnDate,
           returnTime,
-          ...formData,
+          customerName: formData.customerName,
+          customerEmail: formData.customerEmail,
+          customerPhone: `${formData.countryCode} ${formData.customerPhone}`,
+          pickupAddress: formData.pickupAddress,
+          dropAddress: formData.dropAddress,
+          requirements: formData.requirements,
         }),
       });
 
@@ -131,21 +138,22 @@ export default function InquiryPage() {
                 <label className="block text-sm font-medium text-gray-700">
                   Phone Number *
                 </label>
-                <input
-                  type="tel"
-                  required
+                <PhoneInput
                   value={formData.customerPhone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, customerPhone: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  countryCode={formData.countryCode}
+                  onValueChange={(val) => setFormData(prev => ({ ...prev, customerPhone: val }))}
+                  onCountryCodeChange={(code) => setFormData(prev => ({ ...prev, countryCode: code }))}
+                  required={true}
                 />
               </div>
 
               <div className="space-y-2 md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Email Address
+                  Email Address *
                 </label>
                 <input
                   type="email"
+                  required
                   value={formData.customerEmail}
                   onChange={(e) => setFormData(prev => ({ ...prev, customerEmail: e.target.value }))}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -154,10 +162,11 @@ export default function InquiryPage() {
 
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Pickup Address
+                  Pickup Address *
                 </label>
                 <input
                   type="text"
+                  required
                   value={formData.pickupAddress}
                   onChange={(e) => setFormData(prev => ({ ...prev, pickupAddress: e.target.value }))}
                   placeholder="Enter detailed pickup address"
@@ -167,10 +176,11 @@ export default function InquiryPage() {
 
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
-                  Drop Address
+                  Drop Address *
                 </label>
                 <input
                   type="text"
+                  required
                   value={formData.dropAddress}
                   onChange={(e) => setFormData(prev => ({ ...prev, dropAddress: e.target.value }))}
                   placeholder="Enter detailed drop address"

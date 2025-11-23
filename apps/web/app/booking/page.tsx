@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import Image from 'next/image';
+import PhoneInput from '../../components/ui/PhoneInput';
 
 export default function BookingPage() {
   const searchParams = useSearchParams();
@@ -27,6 +27,7 @@ export default function BookingPage() {
   const [customerData, setCustomerData] = useState({
     name: '',
     phone: '',
+    countryCode: '+91',
     email: '',
     pickupAddress: '',
     dropAddress: '',
@@ -55,7 +56,12 @@ export default function BookingPage() {
         price: parseInt(price || '0'),
         distance: parseInt(distance || '0'),
         duration: parseInt(duration || '0'),
-        ...customerData,
+        name: customerData.name,
+        phone: `${customerData.countryCode} ${customerData.phone}`,
+        email: customerData.email,
+        pickupAddress: customerData.pickupAddress,
+        dropAddress: customerData.dropAddress,
+        specialRequests: customerData.specialRequests,
       };
 
       const response = await fetch('/api/create-booking', {
@@ -187,27 +193,22 @@ export default function BookingPage() {
                     <label className="block text-sm font-medium text-gray-700">
                       Mobile Number *
                     </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <span className="text-gray-500 sm:text-sm">+91</span>
-                      </div>
-                      <input
-                        type="tel"
-                        required
-                        value={customerData.phone}
-                        onChange={(e) => setCustomerData(prev => ({ ...prev, phone: e.target.value }))}
-                        className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
-                        placeholder="Enter 10 digit mobile number"
-                      />
-                    </div>
+                    <PhoneInput
+                      value={customerData.phone}
+                      countryCode={customerData.countryCode}
+                      onValueChange={(val) => setCustomerData(prev => ({ ...prev, phone: val }))}
+                      onCountryCodeChange={(code) => setCustomerData(prev => ({ ...prev, countryCode: code }))}
+                      required={true}
+                    />
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700">
-                      Email Address (Optional)
+                      Email Address *
                     </label>
                     <input
                       type="email"
+                      required
                       value={customerData.email}
                       onChange={(e) => setCustomerData(prev => ({ ...prev, email: e.target.value }))}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
@@ -222,9 +223,10 @@ export default function BookingPage() {
                   <div className="grid md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700">
-                        Pickup Address
+                        Pickup Address *
                       </label>
                       <textarea
+                        required
                         value={customerData.pickupAddress}
                         onChange={(e) => setCustomerData(prev => ({ ...prev, pickupAddress: e.target.value }))}
                         rows={3}
@@ -235,9 +237,10 @@ export default function BookingPage() {
 
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-gray-700">
-                        Drop Address
+                        Drop Address *
                       </label>
                       <textarea
+                        required
                         value={customerData.dropAddress}
                         onChange={(e) => setCustomerData(prev => ({ ...prev, dropAddress: e.target.value }))}
                         rows={3}
