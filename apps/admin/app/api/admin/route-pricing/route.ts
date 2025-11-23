@@ -57,8 +57,8 @@ export async function POST(req: Request) {
         } 
       },
       update: {
-        ...(distanceKm ? { distanceKm } : {}),
-        ...(durationMin ? { durationMin } : {}),
+        ...(typeof distanceKm === 'number' ? { distanceKm } : {}),
+        ...(typeof durationMin === 'number' ? { durationMin } : {}),
       },
       create: {
         fromCityId,
@@ -106,17 +106,27 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
-    const { id, price, active } = body;
+    const { id, price, active, distanceKm, durationMin } = body;
     
     if (!id) {
       return NextResponse.json({ error: 'Missing id' }, { status: 400 });
     }
 
+    // We perform a nested update to ensure the underlying route details are updated as well
     const routePricing = await prisma.routePricing.update({
       where: { id },
       data: {
         ...(typeof price === 'number' ? { price } : {}),
         ...(typeof active === 'boolean' ? { active } : {}),
+        route: {
+          update: {
+            ...(typeof distanceKm === 'number' ? { distanceKm } : {}),
+            ...(typeof durationMin === 'number' ? { durationMin } : {}),
+          }
+        }
+      },
+      include: {
+        route: true // Include route to confirm updates in response if needed
       }
     });
 

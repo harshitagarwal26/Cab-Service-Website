@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface City {
   id: string;
@@ -30,13 +30,99 @@ interface RoutePricing {
   };
 }
 
+// Simple Searchable Dropdown Component
+function SearchableSelect({ 
+  options, 
+  value, 
+  onChange, 
+  placeholder 
+}: { 
+  options: City[], 
+  value: string, 
+  onChange: (val: string) => void, 
+  placeholder: string 
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selectedOption = options.find(o => o.id === value);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredOptions = options.filter(option => 
+    option.name.toLowerCase().includes(search.toLowerCase()) ||
+    option.state.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="relative" ref={ref}>
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 cursor-pointer flex justify-between items-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <span className={selectedOption ? "text-gray-900" : "text-gray-500"}>
+          {selectedOption ? `${selectedOption.name}, ${selectedOption.state}` : placeholder}
+        </span>
+        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+
+      {isOpen && (
+        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+          <div className="p-2 sticky top-0 bg-white border-b">
+            <input
+              type="text"
+              className="w-full p-2 border border-gray-300 rounded text-gray-900 focus:outline-none focus:border-blue-500"
+              placeholder="Search city..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              autoFocus
+            />
+          </div>
+          {filteredOptions.length > 0 ? (
+            filteredOptions.map((option) => (
+              <div
+                key={option.id}
+                className={`px-4 py-2 cursor-pointer hover:bg-blue-50 text-gray-900 ${option.id === value ? 'bg-blue-50 font-medium' : ''}`}
+                onClick={() => {
+                  onChange(option.id);
+                  setIsOpen(false);
+                  setSearch('');
+                }}
+              >
+                {option.name}, {option.state}
+              </div>
+            ))
+          ) : (
+            <div className="px-4 py-2 text-gray-500 text-sm">No cities found</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PricingPage() {
   const [cities, setCities] = useState<City[]>([]);
   const [cabTypes, setCabTypes] = useState<CabType[]>([]);
   const [routePricings, setRoutePricings] = useState<RoutePricing[]>([]);
   const [loading, setLoading] = useState(false);
-  const [searchCity, setSearchCity] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  // Filters for the list view
+  const [filterFromCity, setFilterFromCity] = useState('');
+  const [filterToCity, setFilterToCity] = useState('');
+  const [showAll, setShowAll] = useState(false);
 
   const [formData, setFormData] = useState({
     tripType: 'ONE_WAY',
@@ -51,33 +137,27 @@ export default function PricingPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Load initial data when component mounts
+  // Load initial data
   useEffect(() => {
     fetchCabTypes();
-    fetchRoutePricings();
-    fetchCities(); // Load all cities immediately
+    fetchCities();
   }, []);
 
-  // Handle search functionality
+  // Fetch pricings when filters change or "Show All" is toggled
   useEffect(() => {
-    if (searchCity.trim()) {
-      fetchCities(searchCity);
+    if (showAll || (filterFromCity && filterToCity)) {
+      fetchRoutePricings();
     } else {
-      // If search is cleared, reload all cities
-      fetchCities();
+      setRoutePricings([]); // Clear list if filters aren't met
     }
-  }, [searchCity]);
+  }, [filterFromCity, filterToCity, showAll]);
 
-  const fetchCities = async (search = '') => {
+  const fetchCities = async () => {
     try {
       setError(null);
-      const response = await fetch(`/api/cities?search=${encodeURIComponent(search)}`);
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      const response = await fetch(`/api/cities?limit=1000`); 
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      console.log('Cities response:', data);
-      console.log('Cities count:', data.data?.length || 0);
       setCities(data.data || []);
     } catch (error: any) {
       console.error('Error fetching cities:', error);
@@ -88,13 +168,9 @@ export default function PricingPage() {
   const fetchCabTypes = async () => {
     try {
       setError(null);
-      console.log('Fetching cab types from /api/cab-types');
       const response = await fetch('/api/cab-types');
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      console.log('Cab types response:', data);
       setCabTypes(data.data || []);
     } catch (error: any) {
       console.error('Error fetching cab types:', error);
@@ -105,12 +181,15 @@ export default function PricingPage() {
   const fetchRoutePricings = async () => {
     try {
       setError(null);
-      const response = await fetch('/api/admin/route-pricing');
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const params = new URLSearchParams();
+      if (!showAll) {
+        if (filterFromCity) params.append('fromCityId', filterFromCity);
+        if (filterToCity) params.append('toCityId', filterToCity);
       }
+      
+      const response = await fetch(`/api/admin/route-pricing?${params.toString()}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
-      console.log('Route pricings response:', data);
       setRoutePricings(data.data || []);
     } catch (error: any) {
       console.error('Error fetching route pricings:', error);
@@ -130,7 +209,9 @@ export default function PricingPage() {
         ? { 
             id: editingId, 
             price: parseInt(formData.price), 
-            active: formData.active 
+            active: formData.active,
+            distanceKm: formData.distanceKm ? parseInt(formData.distanceKm) : undefined,
+            durationMin: formData.durationMin ? parseInt(formData.durationMin) : undefined,
           }
         : {
             ...formData,
@@ -141,22 +222,24 @@ export default function PricingPage() {
 
       const response = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
 
       if (response.ok) {
         resetForm();
-        fetchRoutePricings();
+        // Refresh list if it matches current filters or we are showing all
+        if (showAll || (filterFromCity === formData.fromCityId && filterToCity === formData.toCityId)) {
+          fetchRoutePricings();
+        }
         alert(editingId ? 'Route pricing updated!' : 'Route pricing created!');
       } else {
-        throw new Error('Failed to save route pricing');
+        const errData = await response.json();
+        throw new Error(errData.error || 'Failed to save route pricing');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving route pricing:', error);
-      alert('Error saving route pricing');
+      alert(error.message || 'Error saving route pricing');
     } finally {
       setLoading(false);
     }
@@ -169,26 +252,23 @@ export default function PricingPage() {
       toCityId: rp.route.toCity.id,
       cabTypeId: rp.cabType.id,
       price: rp.price.toString(),
-      distanceKm: rp.route.distanceKm.toString(),
-      durationMin: rp.route.durationMin.toString(),
+      distanceKm: rp.route.distanceKm?.toString() || '',
+      durationMin: rp.route.durationMin?.toString() || '',
       active: rp.active,
     });
     setEditingId(rp.id);
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this route pricing?')) {
-      return;
-    }
+    if (!confirm('Are you sure you want to delete this route pricing?')) return;
 
     try {
-      const response = await fetch(`/api/admin/route-pricing?id=${id}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`/api/admin/route-pricing?id=${id}`, { method: 'DELETE' });
 
       if (response.ok) {
         fetchRoutePricings();
-        alert('Route pricing deleted!');
       } else {
         throw new Error('Failed to delete route pricing');
       }
@@ -212,33 +292,24 @@ export default function PricingPage() {
     setEditingId(null);
   };
 
-  const selectedFromCity = cities.find(c => c.id === formData.fromCityId);
-  const selectedToCity = cities.find(c => c.id === formData.toCityId);
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Route Pricing Management</h1>
-        <p className="mt-1 text-sm text-gray-600">
+        <h1 className="text-3xl font-bold text-gray-100">Route Pricing Management</h1>
+        <p className="mt-1 text-sm text-gray-400">
           Create and manage pricing for specific routes and car categories.
         </p>
       </div>
 
-      {/* Error Display */}
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+        <div className="bg-red-900/30 border border-red-800 text-red-200 px-4 py-3 rounded-lg">
           <strong>Error:</strong> {error}
         </div>
       )}
 
-      {/* Debug Info */}
-      <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg text-sm">
-        <strong>Debug:</strong> Found {cabTypes.length} cab types, {cities.length} cities, {routePricings.length} route pricings
-      </div>
-
-      {/* Form */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-6">
+      {/* Create/Edit Form */}
+      <div className="bg-white/5 border border-white/10 rounded-lg p-6">
+        <h2 className="text-lg font-medium text-gray-100 mb-6">
           {editingId ? 'Edit Route Pricing' : 'Add Route Pricing'}
         </h2>
 
@@ -246,15 +317,13 @@ export default function PricingPage() {
           <div className="grid md:grid-cols-2 gap-6">
             {/* Trip Type */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Trip Type *
-              </label>
+              <label className="block text-sm font-medium text-gray-300">Trip Type *</label>
               <select
                 value={formData.tripType}
                 onChange={(e) => setFormData(prev => ({ ...prev, tripType: e.target.value }))}
                 required
                 disabled={!!editingId}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                className="w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
               >
                 <option value="ONE_WAY">One Way</option>
                 <option value="ROUND_TRIP">Round Trip</option>
@@ -263,15 +332,13 @@ export default function PricingPage() {
 
             {/* Cab Type */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Car Category *
-              </label>
+              <label className="block text-sm font-medium text-gray-300">Car Category *</label>
               <select
                 value={formData.cabTypeId}
                 onChange={(e) => setFormData(prev => ({ ...prev, cabTypeId: e.target.value }))}
                 required
                 disabled={!!editingId}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
+                className="w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
               >
                 <option value="">Select car category</option>
                 {cabTypes.map((ct) => (
@@ -282,82 +349,43 @@ export default function PricingPage() {
               </select>
             </div>
 
-            {/* City Search */}
-            <div className="space-y-2 md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Search Cities (optional - cities are pre-loaded)
-              </label>
-              <input
-                type="text"
-                value={searchCity}
-                onChange={(e) => setSearchCity(e.target.value)}
-                placeholder="Type to filter cities in dropdowns below..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-              {cities.length > 0 && (
-                <p className="text-sm text-green-600">
-                  ✓ {cities.length} cities available in dropdowns below
-                </p>
-              )}
-            </div>
-
             {/* From City */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Source City *
-              </label>
-              <select
-                value={formData.fromCityId}
-                onChange={(e) => setFormData(prev => ({ ...prev, fromCityId: e.target.value }))}
-                required
-                disabled={!!editingId}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-              >
-                <option value="">Select source city</option>
-                {cities.map((city) => (
-                  <option key={city.id} value={city.id}>
-                    {city.name}, {city.state}
-                  </option>
-                ))}
-              </select>
-              {selectedFromCity && (
-                <p className="text-sm text-gray-600">
-                  Selected: {selectedFromCity.name}, {selectedFromCity.state}
-                </p>
+              <label className="block text-sm font-medium text-gray-300">Source City *</label>
+              {editingId ? (
+                <div className="px-4 py-2 bg-black/20 border border-white/10 rounded-lg text-gray-400 cursor-not-allowed">
+                  {cities.find(c => c.id === formData.fromCityId)?.name || 'Unknown'}
+                </div>
+              ) : (
+                <SearchableSelect 
+                  options={cities}
+                  value={formData.fromCityId}
+                  onChange={(val) => setFormData(prev => ({ ...prev, fromCityId: val }))}
+                  placeholder="Select source city"
+                />
               )}
             </div>
 
             {/* To City */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Destination City *
-              </label>
-              <select
-                value={formData.toCityId}
-                onChange={(e) => setFormData(prev => ({ ...prev, toCityId: e.target.value }))}
-                required
-                disabled={!!editingId}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
-              >
-                <option value="">Select destination city</option>
-                {cities.filter(c => c.id !== formData.fromCityId).map((city) => (
-                  <option key={city.id} value={city.id}>
-                    {city.name}, {city.state}
-                  </option>
-                ))}
-              </select>
-              {selectedToCity && (
-                <p className="text-sm text-gray-600">
-                  Selected: {selectedToCity.name}, {selectedToCity.state}
-                </p>
+              <label className="block text-sm font-medium text-gray-300">Destination City *</label>
+              {editingId ? (
+                <div className="px-4 py-2 bg-black/20 border border-white/10 rounded-lg text-gray-400 cursor-not-allowed">
+                  {cities.find(c => c.id === formData.toCityId)?.name || 'Unknown'}
+                </div>
+              ) : (
+                <SearchableSelect 
+                  options={cities}
+                  value={formData.toCityId}
+                  onChange={(val) => setFormData(prev => ({ ...prev, toCityId: val }))}
+                  placeholder="Select destination city"
+                />
               )}
             </div>
 
             {/* Price */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Price (₹) *
-              </label>
+              <label className="block text-sm font-medium text-gray-300">Price (₹) *</label>
               <input
                 type="number"
                 min="1"
@@ -365,60 +393,56 @@ export default function PricingPage() {
                 onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
                 required
                 placeholder="Enter price"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg text-gray-100 focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
-            {/* Distance (Optional) */}
+            {/* Distance */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Distance (km) - Optional
-              </label>
+              <label className="block text-sm font-medium text-gray-300">Distance (km)</label>
               <input
                 type="number"
                 min="1"
                 value={formData.distanceKm}
                 onChange={(e) => setFormData(prev => ({ ...prev, distanceKm: e.target.value }))}
                 placeholder="Enter distance"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg text-gray-100 focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
-            {/* Duration (Optional) */}
+            {/* Duration */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Duration (minutes) - Optional
-              </label>
+              <label className="block text-sm font-medium text-gray-300">Duration (minutes)</label>
               <input
                 type="number"
                 min="1"
                 value={formData.durationMin}
                 onChange={(e) => setFormData(prev => ({ ...prev, durationMin: e.target.value }))}
                 placeholder="Enter duration"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2 bg-black/20 border border-white/10 rounded-lg text-gray-100 focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
             {/* Active Status */}
-            <div className="space-y-2">
-              <label className="flex items-center space-x-2">
+            <div className="space-y-2 pt-6">
+              <label className="flex items-center space-x-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={formData.active}
                   onChange={(e) => setFormData(prev => ({ ...prev, active: e.target.checked }))}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 bg-gray-700"
                 />
-                <span className="text-sm font-medium text-gray-700">Active</span>
+                <span className="text-sm font-medium text-gray-300">Active</span>
               </label>
             </div>
           </div>
 
-          <div className="flex justify-end space-x-4">
+          <div className="flex justify-end space-x-4 pt-4">
             {editingId && (
               <button
                 type="button"
                 onClick={resetForm}
-                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-white/10 transition-colors"
               >
                 Cancel
               </button>
@@ -426,99 +450,125 @@ export default function PricingPage() {
             <button
               type="submit"
               disabled={loading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-lg shadow-indigo-500/30"
             >
-              {loading ? 'Saving...' : editingId ? 'Update' : 'Create'}
+              {loading ? 'Saving...' : editingId ? 'Update Pricing' : 'Create Pricing'}
             </button>
           </div>
         </form>
       </div>
 
-      {/* Route Pricing List */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-6">Existing Route Pricing</h2>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Route
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Trip Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Car Category
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Price
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Distance
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {routePricings.map((rp) => (
-                <tr key={rp.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {rp.route.fromCity.name} → {rp.route.toCity.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {rp.tripType.replace('_', ' ')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {rp.cabType.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                    ₹{rp.price.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {rp.route.distanceKm > 0 ? `${rp.route.distanceKm} km` : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      rp.active 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
-                    }`}>
-                      {rp.active ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleEdit(rp)}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(rp.id)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {routePricings.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              No route pricing found. Create one above.
+      {/* Search & Filter Section */}
+      <div className="bg-white/5 border border-white/10 rounded-lg overflow-hidden">
+        <div className="p-6 border-b border-white/10">
+          <h2 className="text-lg font-medium text-gray-100 mb-4">Search Route Pricing</h2>
+          
+          <div className="flex flex-col md:flex-row gap-4 items-end">
+            <div className="w-full md:flex-1 space-y-2">
+              <label className="text-sm text-gray-400">Source City</label>
+              <SearchableSelect 
+                options={cities}
+                value={filterFromCity}
+                onChange={setFilterFromCity}
+                placeholder="Filter by source..."
+              />
             </div>
-          )}
+            
+            <div className="w-full md:flex-1 space-y-2">
+              <label className="text-sm text-gray-400">Destination City</label>
+              <SearchableSelect 
+                options={cities}
+                value={filterToCity}
+                onChange={setFilterToCity}
+                placeholder="Filter by destination..."
+              />
+            </div>
+
+            <div className="pb-2">
+              <label className="flex items-center space-x-2 text-sm text-gray-300 cursor-pointer hover:text-white transition-colors">
+                <input 
+                  type="checkbox"
+                  checked={showAll}
+                  onChange={e => setShowAll(e.target.checked)}
+                  className="rounded bg-white/10 border-white/20 text-indigo-500 focus:ring-indigo-500/50"
+                />
+                <span>Show All Routes</span>
+              </label>
+            </div>
+          </div>
         </div>
+
+        {/* List Content */}
+        {(showAll || (filterFromCity && filterToCity)) ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-white/10">
+              <thead className="bg-black/20">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Route</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Car</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Price</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Distance</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {routePricings.map((rp) => (
+                  <tr key={rp.id} className="hover:bg-white/5 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+                      {rp.route.fromCity.name} → {rp.route.toCity.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      {rp.tripType.replace('_', ' ')}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      {rp.cabType.name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-100">
+                      ₹{rp.price.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      {rp.route.distanceKm > 0 ? `${rp.route.distanceKm} km` : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                        rp.active 
+                          ? 'bg-green-900/30 text-green-400 border border-green-800' 
+                          : 'bg-red-900/30 text-red-400 border border-red-800'
+                      }`}>
+                        {rp.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                      <div className="flex space-x-3">
+                        <button onClick={() => handleEdit(rp)} className="text-indigo-400 hover:text-indigo-300 transition-colors">Edit</button>
+                        <button onClick={() => handleDelete(rp.id)} className="text-red-400 hover:text-red-300 transition-colors">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {routePricings.length === 0 && (
+              <div className="text-center py-12 text-gray-500">
+                No route pricing found for the selected filters.
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-16 px-4">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white/5 mb-4">
+              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-200 mb-1">Select Cities to View Pricing</h3>
+            <p className="text-gray-500 max-w-sm mx-auto">
+              Choose a source and destination city above to see pricing for that specific route, or toggle "Show All Routes" to view everything.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

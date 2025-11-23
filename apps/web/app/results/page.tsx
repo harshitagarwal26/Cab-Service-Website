@@ -1,7 +1,7 @@
 import { prisma } from '@cab/db/src/client';
 import { notFound, redirect } from 'next/navigation';
+import Link from 'next/link';
 import InclusionsExclusions from "../../components/InclusionsExclusions";
-
 
 interface SearchParams {
   tripType?: string;
@@ -13,7 +13,6 @@ interface SearchParams {
   returnTime?: string;
 }
 
-
 export default async function ResultsPage({
   searchParams,
 }: {
@@ -21,11 +20,9 @@ export default async function ResultsPage({
 }) {
   const { tripType, from, to, startDate, startTime, returnDate, returnTime } = searchParams;
 
-
   if (!tripType || !from || !to || !startDate || !startTime) {
     notFound();
   }
-
 
   // Get route with pricing
   const route = await prisma.cityRoute.findUnique({
@@ -53,12 +50,30 @@ export default async function ResultsPage({
     },
   });
 
+  // Fetch Custom Cab Type
+  const customCab = await prisma.cabType.findUnique({
+    where: { name: 'Custom' }
+  });
 
-  if (!route || route.routePricing.length === 0) {
+  if (!route) {
+    // If route itself doesn't exist, fallback to inquiry with whatever params we have
     const params = new URLSearchParams(searchParams as Record<string, string>);
     redirect(`/inquiry?${params.toString()}`);
   }
 
+  // If no pricing available and no custom cab, redirect to inquiry
+  if (route.routePricing.length === 0 && !customCab) {
+    const params = new URLSearchParams({
+      tripType: tripType,
+      fromLocation: `${route.fromCity.name}, ${route.fromCity.state}`,
+      toLocation: `${route.toCity.name}, ${route.toCity.state}`,
+      startDate: startDate,
+      startTime: startTime,
+      ...(returnDate ? { returnDate } : {}),
+      ...(returnTime ? { returnTime } : {}),
+    });
+    redirect(`/inquiry?${params.toString()}`);
+  }
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -69,6 +84,17 @@ export default async function ResultsPage({
     });
   };
 
+  // Prepare Inquiry Link for Custom Cab
+  const inquiryParams = new URLSearchParams({
+    tripType: tripType,
+    fromLocation: `${route.fromCity.name}, ${route.fromCity.state}`,
+    toLocation: `${route.toCity.name}, ${route.toCity.state}`,
+    startDate: startDate,
+    startTime: startTime,
+    ...(returnDate ? { returnDate } : {}),
+    ...(returnTime ? { returnTime } : {}),
+    requirements: "I am interested in a Custom/Special vehicle."
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50">
@@ -122,23 +148,66 @@ export default async function ResultsPage({
         </div>
       </div>
 
-
       <div className="container mx-auto px-4 py-8">
         {/* Trust Indicators */}
         <div className="bg-white rounded-xl shadow-sm border p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            {/* Trust indicators here */}
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Verified Drivers</p>
+                <p className="text-xs text-gray-500">Professional & Trained</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">On-Time Service</p>
+                <p className="text-xs text-gray-500">Punctuality Guaranteed</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                <svg className="w-6 h-6 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Transparent Billing</p>
+                <p className="text-xs text-gray-500">No Hidden Charges</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <div className="flex-shrink-0">
+                <svg className="w-6 h-6 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192L5.636 18.364M12 2.25a9.75 9.75 0 109.75 9.75A9.75 9.75 0 0012 2.25z" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">24/7 Support</p>
+                <p className="text-xs text-gray-500">Always Here to Help</p>
+              </div>
+            </div>
           </div>
         </div>
 
-
         {/* Cab Selection */}
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Available Cabs ({route.routePricing.length} options)</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">
+            Available Cabs ({route.routePricing.length + (customCab ? 1 : 0)} options)
+          </h2>
+          
           {route.routePricing.map((pricing, index) => {
             const features = pricing.cabType.features ? JSON.parse(pricing.cabType.features) : [];
             const isRecommended = index === 1;
-
 
             return (
               <div key={pricing.id} className={`bg-white rounded-xl shadow-sm border-2 transition-all duration-200 hover:shadow-lg hover:border-orange-200 ${isRecommended ? 'border-orange-300 ring-2 ring-orange-100' : 'border-gray-100'}`}> 
@@ -153,7 +222,6 @@ export default async function ResultsPage({
                     </div>
                   </div>
                 )}
-
 
                 {/* Cab Card Content */}
                 <div className="p-6">
@@ -231,7 +299,6 @@ export default async function ResultsPage({
                         <div className="text-xs text-gray-500">Fuel • Tolls • Driver allowance</div>
                       </div>
 
-
                       <form action="/api/booking" method="POST" className="space-y-2">
                         <input type="hidden" name="routeId" value={route.id} />
                         <input type="hidden" name="cabTypeId" value={pricing.cabTypeId} />
@@ -256,7 +323,6 @@ export default async function ResultsPage({
                         </div>
                       </form>
 
-
                       {/* Collapsible Inclusions and Exclusions Panel */}
                       <InclusionsExclusions />
                     </div>
@@ -266,8 +332,62 @@ export default async function ResultsPage({
             );
           })}
 
+          {/* Custom Cab Card */}
+          {customCab && (
+            <div key={customCab.id} className="bg-white rounded-xl shadow-sm border-2 border-indigo-100 hover:border-indigo-300 hover:shadow-lg transition-all duration-200">
+              <div className="p-6">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                  <div className="flex items-start space-x-4 flex-grow">
+                    <div className="w-20 h-20 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                       {customCab.image ? (
+                          <img src={customCab.image} alt={customCab.name} className="w-16 h-16 object-contain" />
+                       ) : (
+                          <svg className="w-10 h-10 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                          </svg>
+                       )}
+                    </div>
+                    <div className="flex-grow">
+                      <div className="flex items-center gap-2 mb-2">
+                        <h3 className="text-xl font-bold text-gray-900">{customCab.name}</h3>
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                          On Request
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mb-3 max-w-lg">
+                        Need a specific vehicle or have special requirements? Request a custom quote and we'll arrange it for you.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {customCab.features && JSON.parse(customCab.features).map((f: string, i: number) => (
+                           <span key={i} className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-600">
+                             {f}
+                           </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
 
-          {/* ... rest of the code (custom requirements, footer, etc.) remains unchanged ... */}
+                  <div className="text-center lg:text-right flex-shrink-0">
+                    <div className="mb-4">
+                      <div className="text-2xl font-bold text-indigo-600">Custom Quote</div>
+                      <div className="text-sm text-gray-500">Tailored to your needs</div>
+                    </div>
+                    
+                    <Link
+                      href={`/inquiry?${inquiryParams.toString()}`}
+                      className="inline-block w-full px-8 py-3 font-semibold rounded-lg transition-all duration-200 bg-indigo-600 hover:bg-indigo-700 text-white shadow-md text-center"
+                    >
+                      Request Quote
+                    </Link>
+                    <div className="text-xs text-gray-500 mt-2">
+                      We'll contact you shortly
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
     </div>
