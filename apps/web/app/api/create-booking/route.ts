@@ -28,6 +28,12 @@ export async function POST(request: NextRequest) {
 
     // Here you can add email notifications, SMS, etc.
     // await sendBookingConfirmation(booking);
+    await sendAdminNotification(
+    'New Booking Request',
+    `New booking from ${data.name} (${data.phone}).
+    Route: ${booking.fromCityId ? 'Intercity' : 'Custom'}
+    Price: ₹${data.price}`
+  );
 
     return NextResponse.json({ 
       success: true, 
