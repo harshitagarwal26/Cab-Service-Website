@@ -20,6 +20,9 @@ importers:
       '@cab/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@prisma/client':
+        specifier: 5.20.0
+        version: 5.20.0(prisma@5.20.0)
       bcryptjs:
         specifier: 2.4.3
         version: 2.4.3
