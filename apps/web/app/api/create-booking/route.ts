@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@cab/db/src/client';
+import { sendAdminNotification } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
