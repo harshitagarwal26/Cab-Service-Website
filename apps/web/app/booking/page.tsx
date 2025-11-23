@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import PhoneInput from '../../components/ui/PhoneInput';
 
-export default function BookingPage() {
+function BookingContent() {
+  // ... [Copy all the original logic from BookingPage here] ...
+  // Ensure you copy everything from `const searchParams = useSearchParams();` down to the return statement closing the div.
   const searchParams = useSearchParams();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -428,5 +430,13 @@ export default function BookingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BookingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <BookingContent />
+    </Suspense>
   );
 }

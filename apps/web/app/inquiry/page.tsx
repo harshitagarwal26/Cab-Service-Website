@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import PhoneInput from '../../components/ui/PhoneInput';
 
-export default function InquiryPage() {
+function InquiryContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -215,5 +215,13 @@ export default function InquiryPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function InquiryPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <InquiryContent />
+    </Suspense>
   );
 }
