@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@prisma/client": "5.20.0",
     "@cab/db": "workspace:*",
     "bcryptjs": "2.4.3",
     "next": "14.2.5",
