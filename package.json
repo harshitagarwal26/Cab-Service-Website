@@ -6,6 +6,7 @@
     "packages/*"
   ],
   "scripts": {
+    "postinstall": "pnpm -C packages/db prisma generate",
     "dev:web": "next dev --turbo -p 3000 apps/web",
     "dev:admin": "next dev --turbo -p 3001 apps/admin",
     "dev": "concurrently -k -n web,admin -c green,blue \"pnpm -C apps/web dev\" \"pnpm -C apps/admin dev\"",
