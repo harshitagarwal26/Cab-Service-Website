@@ -2,6 +2,8 @@ import { Suspense } from 'react';
 import TripBookingTabs from '../components/TripBookingTabs';
 import { prisma } from "@cab/db/src/client";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const cities = await prisma.city.findMany({
     where: { active: true },
