@@ -7,8 +7,9 @@ export async function POST(request: NextRequest) {
     const data = await request.json();
 
     // FIX: Fetch route details to get City IDs if routeId is provided
-    let fromCityId = null;
-    let toCityId = null;
+    // Explicitly type as string | null to avoid type inference errors
+    let fromCityId: string | null = null;
+    let toCityId: string | null = null;
 
     if (data.routeId) {
       const route = await prisma.cityRoute.findUnique({
