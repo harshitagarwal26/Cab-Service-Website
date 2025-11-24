@@ -6,11 +6,27 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
 
+    // FIX: Fetch route details to get City IDs if routeId is provided
+    let fromCityId = null;
+    let toCityId = null;
+
+    if (data.routeId) {
+      const route = await prisma.cityRoute.findUnique({
+        where: { id: data.routeId },
+        select: { fromCityId: true, toCityId: true }
+      });
+      
+      if (route) {
+        fromCityId = route.fromCityId;
+        toCityId = route.toCityId;
+      }
+    }
+
     const booking = await prisma.booking.create({
       data: {
         tripType: data.tripType,
-        fromCityId: data.routeId ? undefined : null, // Will get from route
-        toCityId: data.routeId ? undefined : null,   // Will get from route
+        fromCityId: fromCityId, // Now correctly populated
+        toCityId: toCityId,     // Now correctly populated
         startAt: new Date(`${data.startDate}T${data.startTime}`),
         endAt: data.returnDate ? new Date(`${data.returnDate}T${data.returnTime}`) : null,
         returnAt: data.returnDate ? new Date(`${data.returnDate}T${data.returnTime}`) : null,
@@ -30,11 +46,11 @@ export async function POST(request: NextRequest) {
     // Here you can add email notifications, SMS, etc.
     // await sendBookingConfirmation(booking);
     await sendAdminNotification(
-    'New Booking Request',
-    `New booking from ${data.name} (${data.phone}).
-    Route: ${booking.fromCityId ? 'Intercity' : 'Custom'}
-    Price: ₹${data.price}`
-  );
+      'New Booking Request',
+      `New booking from ${data.name} (${data.phone}).
+      Route: ${fromCityId ? 'Intercity' : 'Custom'}
+      Price: ₹${data.price}`
+    );
 
     return NextResponse.json({ 
       success: true, 
