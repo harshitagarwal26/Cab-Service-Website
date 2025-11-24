@@ -36,7 +36,7 @@ export default function BookingsPage() {
       const json = await res.json();
       setBookings(json.data || []);
       
-      // Deselect if the selected booking is no longer in the list (e.g. moved to archive)
+      // Deselect if the selected booking is no longer in the list
       if (selectedBooking) {
         const stillExists = (json.data || []).find((b: Booking) => b.id === selectedBooking.id);
         if (!stillExists) setSelectedBooking(null);
@@ -62,7 +62,6 @@ export default function BookingsPage() {
       });
       if (res.ok) {
         fetchBookings();
-        // Update local selected state immediately for better UX
         if (selectedBooking && selectedBooking.id === id) {
           setSelectedBooking({ ...selectedBooking, status: newStatus });
         }
@@ -97,7 +96,6 @@ export default function BookingsPage() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-100">Bookings</h1>
         
-        {/* Tabs */}
         <div className="bg-white/5 p-1 rounded-lg flex gap-1">
           <button
             onClick={() => setActiveTab('active')}
@@ -152,7 +150,9 @@ export default function BookingsPage() {
                 
                 <div className="flex justify-between items-end mt-2">
                   <div className="text-sm text-slate-400">{booking.customerName}</div>
-                  <div className="text-sm font-semibold text-indigo-300">₹{booking.priceQuote.toLocaleString()}</div>
+                  <div className="text-sm font-semibold text-indigo-300">
+                    #{booking.id.slice(0, 8).toUpperCase()}
+                  </div>
                 </div>
               </div>
             ))
@@ -166,7 +166,8 @@ export default function BookingsPage() {
               <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
                 <div>
                   <h2 className="text-xl font-semibold text-white mb-1">
-                    Booking #{selectedBooking.id.slice(-6).toUpperCase()}
+                    {/* UPDATED: Using slice(0, 8) to match customer portal */}
+                    Booking #{selectedBooking.id.slice(0, 8).toUpperCase()}
                   </h2>
                   <div className="flex gap-4 text-sm text-slate-400 mt-2">
                     <span className="bg-white/10 px-2 py-1 rounded text-slate-200">
