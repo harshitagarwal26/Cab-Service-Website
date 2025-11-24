@@ -95,15 +95,15 @@ export default async function ResultsPage({
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-orange-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header Section */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-40">
+      <div className="bg-white shadow-sm border-b sticky top-0 z-30">
         <div className="container mx-auto px-4 py-4 md:py-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center text-gray-900 mb-1">
                 <span className="font-bold text-lg md:text-2xl">{route.fromCity.name}</span>
-                <svg className="w-5 h-5 mx-3 text-orange-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 mx-3 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
                 <span className="font-bold text-lg md:text-2xl">{route.toCity.name}</span>
@@ -115,14 +115,14 @@ export default async function ResultsPage({
                   </svg>
                   {formatDate(startDate)}
                 </span>
-                <span className="hidden md:inline">•</span>
+                <span className="hidden md:inline text-gray-300">•</span>
                 <span className="flex items-center">
                   <svg className="w-4 h-4 mr-1 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                   {route.distanceKm} km
                 </span>
-                <span className="hidden md:inline">•</span>
+                <span className="hidden md:inline text-gray-300">•</span>
                 <span className="flex items-center">
                   <svg className="w-4 h-4 mr-1 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -132,7 +132,7 @@ export default async function ResultsPage({
               </div>
             </div>
             <div className="flex items-center gap-3">
-               <div className="bg-orange-100 text-orange-800 px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap">
+               <div className="bg-blue-50 text-blue-700 border border-blue-100 px-4 py-1.5 rounded-full text-sm font-semibold whitespace-nowrap">
                 {tripType === 'ROUND_TRIP' ? 'Round Trip' : 'One Way'}
               </div>
             </div>
@@ -142,7 +142,7 @@ export default async function ResultsPage({
 
       <div className="container mx-auto px-4 py-8">
         {/* Trust Indicators */}
-        <div className="bg-white rounded-xl shadow-sm border p-6 mb-8 hidden md:block">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8 hidden md:block">
           <div className="grid grid-cols-4 gap-6">
             {[
               { color: 'green', title: 'Verified Drivers', desc: 'Professional & Trained', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
@@ -151,13 +151,13 @@ export default async function ResultsPage({
               { color: 'orange', title: '24/7 Support', desc: 'Always Here to Help', icon: 'M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192L5.636 18.364M12 2.25a9.75 9.75 0 109.75 9.75A9.75 9.75 0 0012 2.25z' }
             ].map((item, idx) => (
               <div key={idx} className="flex items-center space-x-3">
-                <div className={`flex-shrink-0 text-${item.color}-500`}>
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className={`flex-shrink-0 text-${item.color}-500 bg-${item.color}-50 p-2 rounded-lg`}>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
                   </svg>
                 </div>
                 <div>
-                  <p className="font-medium text-gray-900">{item.title}</p>
+                  <p className="font-semibold text-gray-900 text-sm">{item.title}</p>
                   <p className="text-xs text-gray-500">{item.desc}</p>
                 </div>
               </div>
@@ -167,27 +167,29 @@ export default async function ResultsPage({
 
         {/* Cab Selection */}
         <div className="space-y-6 max-w-5xl mx-auto">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Available Cabs ({route.routePricing.length + (customCab ? 1 : 0)} options)
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900">
+              Available Cabs <span className="text-gray-500 text-base font-normal ml-2">({route.routePricing.length + (customCab ? 1 : 0)} options)</span>
+            </h2>
+          </div>
           
           {route.routePricing.map((pricing, index) => {
             const features = pricing.cabType.features ? JSON.parse(pricing.cabType.features) : [];
-            const isRecommended = index === 1; // Assuming 2nd option is usually the best value (e.g. Sedan)
+            const isRecommended = index === 1;
 
             return (
-              <div key={pricing.id} className={`bg-white rounded-xl shadow-sm border-2 transition-all duration-200 hover:shadow-lg ${isRecommended ? 'border-orange-300 ring-1 ring-orange-100 relative overflow-hidden' : 'border-gray-100'}`}> 
+              <div key={pricing.id} className={`bg-white rounded-xl shadow-sm border transition-all duration-200 hover:shadow-md ${isRecommended ? 'border-blue-400 ring-1 ring-blue-100 relative' : 'border-gray-200'}`}> 
                 {isRecommended && (
-                  <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold px-3 py-1 absolute top-0 right-0 rounded-bl-xl shadow-sm z-10">
-                    POPULAR
+                  <div className="bg-blue-600 text-white text-[10px] uppercase tracking-wider font-bold px-3 py-1 absolute top-0 right-0 rounded-bl-lg rounded-tr-lg z-10">
+                    Recommended
                   </div>
                 )}
 
                 <div className="p-6">
                   <div className="flex flex-col lg:flex-row gap-6">
                     {/* Image & Basic Info */}
-                    <div className="flex-1 flex gap-4">
-                      <div className="w-24 h-24 bg-gray-50 rounded-lg flex items-center justify-center p-2 flex-shrink-0">
+                    <div className="flex-1 flex flex-col sm:flex-row gap-6">
+                      <div className="w-full sm:w-32 h-32 bg-gray-50 rounded-xl flex items-center justify-center p-2 flex-shrink-0 border border-gray-100">
                         {pricing.cabType.image ? (
                           <img src={pricing.cabType.image} alt={pricing.cabType.name} className="w-full h-full object-contain" />
                         ) : (
@@ -197,16 +199,31 @@ export default async function ResultsPage({
                         )}
                       </div>
                       
-                      <div>
-                        <h3 className="text-xl font-bold text-gray-900 mb-1">{pricing.cabType.name}</h3>
-                        <div className="flex flex-wrap gap-3 text-sm text-gray-600 mb-3">
-                          <span className="flex items-center"><i className="fas fa-chair mr-1.5 opacity-60"></i>{pricing.cabType.seats} seats</span>
-                          <span className="flex items-center"><i className="fas fa-suitcase mr-1.5 opacity-60"></i>{pricing.cabType.luggage} bags</span>
-                          <span className="flex items-center text-green-600"><i className="fas fa-snowflake mr-1.5"></i>AC</span>
+                      <div className="flex-grow">
+                        <div className="flex items-baseline gap-3 mb-2">
+                           <h3 className="text-xl font-bold text-gray-900">{pricing.cabType.name}</h3>
+                           <span className="text-sm text-gray-500">or equivalent</span>
                         </div>
+                        
+                        <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-4">
+                          <span className="flex items-center bg-gray-50 px-2 py-1 rounded">
+                             <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m8-2a2 2 0 100-4 2 2 0 000 4zm-6-2a2 2 0 100-4 2 2 0 000 4zm6 2a2 2 0 100-4 2 2 0 000 4zm-6-2a2 2 0 100-4 2 2 0 000 4z" /></svg>
+                             {pricing.cabType.seats} Seater
+                          </span>
+                          <span className="flex items-center bg-gray-50 px-2 py-1 rounded">
+                             <svg className="w-4 h-4 mr-1.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+                             {pricing.cabType.luggage} Bags
+                          </span>
+                          <span className="flex items-center bg-green-50 text-green-700 px-2 py-1 rounded">
+                             <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                             AC
+                          </span>
+                        </div>
+
+                        {/* Restored Colors Blocks */}
                         <div className="flex flex-wrap gap-2">
-                          {features.slice(0, 3).map((feature: string, idx: number) => (
-                            <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded border">
+                          {features.slice(0, 4).map((feature: string, idx: number) => (
+                            <span key={idx} className="text-xs font-medium bg-blue-50 text-blue-700 px-3 py-1.5 rounded-md border border-blue-100">
                               {feature}
                             </span>
                           ))}
@@ -215,14 +232,14 @@ export default async function ResultsPage({
                     </div>
 
                     {/* Price & Action */}
-                    <div className="lg:w-72 flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-gray-100 pt-4 lg:pt-0 lg:pl-6">
+                    <div className="lg:w-72 flex flex-col justify-between border-t lg:border-t-0 lg:border-l border-gray-100 pt-6 lg:pt-0 lg:pl-6">
                       <div className="text-right lg:text-right mb-4 flex flex-row lg:flex-col justify-between items-center lg:items-end">
-                        <div>
-                          <p className="text-xs text-gray-500 mb-0.5">Total Fare</p>
+                        <div className="text-left lg:text-right">
+                          <p className="text-xs uppercase tracking-wide text-gray-500 font-semibold mb-1">Total Fare</p>
                           <div className="flex items-baseline justify-end gap-1">
-                            <span className="text-2xl font-bold text-gray-900">₹{pricing.price.toLocaleString('en-IN')}</span>
+                            <span className="text-3xl font-bold text-gray-900">₹{pricing.price.toLocaleString('en-IN')}</span>
                           </div>
-                          <p className="text-xs text-green-600 font-medium">Inclusive of GST</p>
+                          <p className="text-xs text-green-600 font-medium mt-1">✓ Inclusive of GST & Tolls</p>
                         </div>
                       </div>
 
@@ -246,22 +263,22 @@ export default async function ResultsPage({
 
           {/* Custom Cab Option */}
           {customCab && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 opacity-90 hover:opacity-100 transition-opacity">
+            <div className="bg-gradient-to-r from-gray-900 to-gray-800 rounded-xl shadow-lg p-6 text-white transform hover:scale-[1.01] transition-transform">
                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                 <div className="flex items-center gap-4">
-                   <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center">
-                     <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                 <div className="flex items-center gap-5">
+                   <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center backdrop-blur-sm">
+                     <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                      </svg>
                    </div>
                    <div>
-                     <h3 className="text-lg font-bold text-gray-900">Need a Special Vehicle?</h3>
-                     <p className="text-sm text-gray-600">Bus, Tempo Traveller, or Luxury Cars available on request.</p>
+                     <h3 className="text-xl font-bold">Need a Special Vehicle?</h3>
+                     <p className="text-gray-300 mt-1">Bus, Tempo Traveller, or Luxury Cars available on request.</p>
                    </div>
                  </div>
                  <Link 
                    href={`/inquiry?${inquiryParams.toString()}`}
-                   className="whitespace-nowrap px-6 py-3 bg-white border-2 border-blue-600 text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition-colors"
+                   className="whitespace-nowrap px-8 py-3 bg-white text-gray-900 font-bold rounded-lg hover:bg-gray-50 transition-colors shadow-md"
                  >
                    Request Callback
                  </Link>
