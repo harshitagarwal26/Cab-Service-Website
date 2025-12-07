@@ -4,17 +4,61 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id             String   @id @default(cuid())
-  email          String   @unique
+  id             String    @id @default(cuid())
   name           String?
-  hashedPassword String
-  role           String   @default("admin")
-  createdAt      DateTime @default(now())
+  email          String    @unique
+  emailVerified  DateTime?
+  image          String?
+  hashedPassword String?   // Optional for OAuth users
+  role           String    @default("user") // "admin" or "user"
+  phone          String?   // Added for profile management
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt @default(now())
+
+  accounts       Account[]
+  sessions       Session[]
+  bookings       Booking[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
 
 model City {
@@ -24,13 +68,10 @@ model City {
   active    Boolean @default(true)
   isAirport Boolean @default(false)
 
-  // Back-relations for Booking
   bookingsFrom Booking[] @relation("FromCity")
   bookingsTo   Booking[] @relation("ToCity")
-
-  // City Routes for available connections
-  routesFrom CityRoute[] @relation("FromCityRoute")
-  routesTo   CityRoute[] @relation("ToCityRoute")
+  routesFrom   CityRoute[] @relation("FromCityRoute")
+  routesTo     CityRoute[] @relation("ToCityRoute")
 
   @@index([name, state])
 }
@@ -42,12 +83,11 @@ model CityRoute {
   distanceKm   Int
   durationMin  Int
   active       Boolean @default(true)
-  tripTypes    String  // JSON array of supported trip types: ["ONE_WAY", "ROUND_TRIP"]
+  tripTypes    String 
 
   fromCity City @relation("FromCityRoute", fields: [fromCityId], references: [id])
   toCity   City @relation("ToCityRoute", fields: [toCityId], references: [id])
 
-  // Pricing rules for this specific route
   routePricing RoutePricing[]
 
   @@unique([fromCityId, toCityId])
@@ -60,7 +100,7 @@ model CabType {
   luggage  Int
   image    String?
   active   Boolean @default(true)
-  features String? // JSON array of features like "AC", "GPS", etc.
+  features String?
 
   pricingRules PricingRule[]
   routePricing RoutePricing[]
@@ -72,7 +112,7 @@ model CabType {
 model PricingRule {
   id          String   @id @default(cuid())
   cabTypeId   String
-  tripType    String   // "ONE_WAY", "ROUND_TRIP", "LOCAL", "AIRPORT"
+  tripType    String 
   baseFare    Int
   perKm       Int
   perMinute   Int
@@ -87,15 +127,14 @@ model PricingRule {
   @@unique([cabTypeId, tripType])
 }
 
-// Route-specific pricing controlled by admin
 model RoutePricing {
   id           String   @id @default(cuid())
   routeId      String
-  fromCityId   String   // Denormalized for fast queries
-  toCityId     String   // Denormalized for fast queries
+  fromCityId   String 
+  toCityId     String 
   cabTypeId    String
-  tripType     String   // "ONE_WAY", "ROUND_TRIP"
-  price        Int      // Fixed price for this route and cab type
+  tripType     String 
+  price        Int 
   active       Boolean  @default(true)
   validFrom    DateTime?
   validTo      DateTime?
@@ -112,12 +151,13 @@ model RoutePricing {
 
 model Booking {
   id            String   @id @default(cuid())
-  tripType      String   // "ONE_WAY", "ROUND_TRIP", "LOCAL", "AIRPORT"
-  fromCityId    String?  // Nullable for local trips
-  toCityId      String?  // Nullable for local trips
+  userId        String?  // Link to User model
+  tripType      String 
+  fromCityId    String? 
+  toCityId      String? 
   startAt       DateTime
   endAt         DateTime?
-  returnAt      DateTime? // For round trips
+  returnAt      DateTime?
   cabTypeId     String
   distanceKm    Int
   durationMin   Int
@@ -131,6 +171,7 @@ model Booking {
   paymentRef    String?
   createdAt     DateTime @default(now())
 
+  user     User?   @relation(fields: [userId], references: [id])
   fromCity City?   @relation("FromCity", fields: [fromCityId], references: [id])
   toCity   City?   @relation("ToCity", fields: [toCityId], references: [id])
   cabType  CabType @relation(fields: [cabTypeId], references: [id])
@@ -138,6 +179,7 @@ model Booking {
   @@index([fromCityId, toCityId, startAt])
   @@index([cabTypeId])
   @@index([tripType])
+  @@index([userId])
 }
 
 model Inquiry {
@@ -153,7 +195,7 @@ model Inquiry {
   pickupAddress String?
   dropAddress   String?
   requirements  String?
-  status        String   @default("pending") // pending, contacted, converted, closed
+  status        String   @default("pending")
   createdAt     DateTime @default(now())
 
   @@index([tripType, status])

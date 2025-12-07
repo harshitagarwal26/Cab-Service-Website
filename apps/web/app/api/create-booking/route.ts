@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@cab/db/src/client';
 import { sendAdminNotification } from '@/lib/email';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 // Helper to capitalize words (e.g., "new delhi" -> "New Delhi")
 const toTitleCase = (str: string) => {
@@ -14,13 +16,13 @@ const toTitleCase = (str: string) => {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
     const data = await request.json();
 
-    // FIX: Fetch route details to get City IDs if routeId is provided
-    // Explicitly type as string | null to avoid type inference errors
+    // Fetch route details to get City IDs if routeId is provided
     let fromCityId: string | null = null;
     let toCityId: string | null = null;
-    let routeDescription = 'Custom'; // Default if no route found
+    let routeDescription = 'Custom';
 
     if (data.routeId) {
       const route = await prisma.cityRoute.findUnique({
@@ -39,9 +41,17 @@ export async function POST(request: NextRequest) {
         routeDescription = `${route.fromCity.name} ➝ ${route.toCity.name}`;
       }
     } else if (data.tripType === 'LOCAL') {
-       // If it is a local trip, we might have the city name in the form data or infer it
-       // For now, we can display "Local Trip" if no specific route
        routeDescription = "Local Trip";
+    }
+
+    // Get User ID if logged in
+    let userId = null;
+    if (session?.user?.email) {
+      const user = await prisma.user.findUnique({ 
+        where: { email: session.user.email },
+        select: { id: true }
+      });
+      if (user) userId = user.id;
     }
 
     const booking = await prisma.booking.create({
@@ -62,6 +72,7 @@ export async function POST(request: NextRequest) {
         pickupAddress: data.pickupAddress || '',
         dropAddress: data.dropAddress || '',
         status: 'pending',
+        userId: userId, // Link to user
       },
     });
 
@@ -74,10 +85,8 @@ export async function POST(request: NextRequest) {
     });
     const priceFormatted = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(data.price);
 
-    // Plain text version
     const plainText = `New Booking from ${customerName} (+${data.phone})\nTrip: ${tripType}\nRoute: ${routeDescription}\nPickup: ${dateStr}\nPrice: ${priceFormatted}`;
 
-    // HTML Version (Matching Inquiry Style)
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; color: #333;">
         <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
