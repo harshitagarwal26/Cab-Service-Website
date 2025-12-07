@@ -1,14 +1,14 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import PhoneInput from '../../components/ui/PhoneInput';
 
 function BookingContent() {
-  // ... [Copy all the original logic from BookingPage here] ...
-  // Ensure you copy everything from `const searchParams = useSearchParams();` down to the return statement closing the div.
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { data: session } = useSession(); // Get session data
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
 
@@ -36,6 +36,17 @@ function BookingContent() {
     specialRequests: '',
     termsAccepted: false,
   });
+
+  // Automatically pre-fill name and email when session loads
+  useEffect(() => {
+    if (session?.user) {
+      setCustomerData(prev => ({
+        ...prev,
+        name: prev.name || session.user.name || '',
+        email: prev.email || session.user.email || ''
+      }));
+    }
+  }, [session]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,9 +224,13 @@ function BookingContent() {
                       required
                       value={customerData.email}
                       onChange={(e) => setCustomerData(prev => ({ ...prev, email: e.target.value }))}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
+                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${session?.user?.email ? 'bg-gray-50' : ''}`}
                       placeholder="Enter email for booking updates"
+                      readOnly={!!session?.user?.email} // Make read-only if logged in to ensure match
                     />
+                    {session?.user?.email && (
+                      <p className="text-xs text-gray-500">Email linked to your account.</p>
+                    )}
                   </div>
                 </div>
 
