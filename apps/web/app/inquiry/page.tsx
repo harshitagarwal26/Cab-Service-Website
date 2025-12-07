@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import PhoneInput from '../../components/ui/PhoneInput';
 
 function InquiryContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { data: session } = useSession(); // Get session data
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -17,6 +19,7 @@ function InquiryContent() {
   const startTime = searchParams.get('startTime');
   const returnDate = searchParams.get('returnDate');
   const returnTime = searchParams.get('returnTime');
+  const requirementsParam = searchParams.get('requirements');
 
   const [formData, setFormData] = useState({
     customerName: '',
@@ -25,8 +28,19 @@ function InquiryContent() {
     countryCode: '+91',
     pickupAddress: '',
     dropAddress: '',
-    requirements: '',
+    requirements: requirementsParam || '',
   });
+
+  // Automatically pre-fill name and email when session loads
+  useEffect(() => {
+    if (session?.user) {
+      setFormData(prev => ({
+        ...prev,
+        customerName: prev.customerName || session.user.name || '',
+        customerEmail: prev.customerEmail || session.user.email || ''
+      }));
+    }
+  }, [session]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,11 +53,11 @@ function InquiryContent() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          tripType,
-          fromLocation,
-          toLocation,
-          startDate,
-          startTime,
+          tripType: tripType || 'CUSTOM',
+          fromLocation: fromLocation || 'Custom',
+          toLocation: toLocation || 'Custom',
+          startDate: startDate || new Date().toISOString().split('T')[0],
+          startTime: startTime || '09:00',
           returnDate,
           returnTime,
           customerName: formData.customerName,
@@ -82,10 +96,10 @@ function InquiryContent() {
             Thank you for your inquiry. Our team will contact you within 2 hours with pricing and availability.
           </p>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/my-inquiries')}
             className="w-full px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Back to Home
+            View My Inquiries
           </button>
         </div>
       </div>
@@ -109,10 +123,10 @@ function InquiryContent() {
           <div className="bg-gray-50 rounded-lg p-4 mb-6">
             <h3 className="font-semibold text-gray-900 mb-2">Trip Summary</h3>
             <div className="space-y-1 text-sm text-gray-600">
-              <p><span className="font-medium">Trip Type:</span> {tripType?.replace('_', ' ')}</p>
-              <p><span className="font-medium">From:</span> {fromLocation}</p>
-              <p><span className="font-medium">To:</span> {toLocation}</p>
-              <p><span className="font-medium">Date:</span> {startDate} at {startTime}</p>
+              <p><span className="font-medium">Trip Type:</span> {tripType?.replace('_', ' ') || 'Custom'}</p>
+              <p><span className="font-medium">From:</span> {fromLocation || 'Custom'}</p>
+              <p><span className="font-medium">To:</span> {toLocation || 'Custom'}</p>
+              <p><span className="font-medium">Date:</span> {startDate || 'Not specified'} at {startTime || 'Not specified'}</p>
               {returnDate && (
                 <p><span className="font-medium">Return:</span> {returnDate} at {returnTime}</p>
               )}
@@ -156,8 +170,12 @@ function InquiryContent() {
                   required
                   value={formData.customerEmail}
                   onChange={(e) => setFormData(prev => ({ ...prev, customerEmail: e.target.value }))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${session?.user?.email ? 'bg-gray-50' : ''}`}
+                  readOnly={!!session?.user?.email} // Make read-only if logged in to ensure match
                 />
+                {session?.user?.email && (
+                  <p className="text-xs text-gray-500">Email linked to your account.</p>
+                )}
               </div>
 
               <div className="space-y-2">
