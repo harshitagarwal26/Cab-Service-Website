@@ -45,7 +45,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Get User ID if logged in
-    let userId = null;
+    // FIX: Explicitly type userId as string | null
+    let userId: string | null = null;
     if (session?.user?.email) {
       const user = await prisma.user.findUnique({ 
         where: { email: session.user.email },
