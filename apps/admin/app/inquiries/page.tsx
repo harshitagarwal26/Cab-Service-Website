@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 interface Inquiry {
   id: string;
@@ -19,9 +20,13 @@ interface Inquiry {
   createdAt: string;
 }
 
-export default function InquiriesPage() {
+function InquiriesContent() {
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get('tab') as 'active' | 'archived') || 'active';
+  const paramId = searchParams.get('id');
+
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
-  const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'archived'>(initialTab);
   const [loading, setLoading] = useState(false);
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
 
@@ -30,7 +35,13 @@ export default function InquiriesPage() {
     try {
       const res = await fetch(`/api/inquiries?status=${activeTab}`);
       const json = await res.json();
-      setInquiries(json.data || []);
+      const list = json.data || [];
+      setInquiries(list);
+
+      if (paramId) {
+        const found = list.find((i: Inquiry) => i.id === paramId);
+        if (found) setSelectedInquiry(found);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -41,6 +52,14 @@ export default function InquiriesPage() {
   useEffect(() => {
     fetchInquiries();
   }, [activeTab]);
+
+  // Effect to select inquiry when list updates (if paramId exists)
+  useEffect(() => {
+    if (paramId && inquiries.length > 0 && !selectedInquiry) {
+      const found = inquiries.find((i) => i.id === paramId);
+      if (found) setSelectedInquiry(found);
+    }
+  }, [inquiries, paramId]);
 
   const markAsDone = async (id: string) => {
     if (!confirm('Mark this inquiry as done and move to archive?')) return;
@@ -77,7 +96,7 @@ export default function InquiriesPage() {
         {/* Tabs */}
         <div className="bg-white/5 p-1 rounded-lg flex gap-1">
           <button
-            onClick={() => setActiveTab('active')}
+            onClick={() => { setActiveTab('active'); setSelectedInquiry(null); }}
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${
               activeTab === 'active' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
             }`}
@@ -85,7 +104,7 @@ export default function InquiriesPage() {
             Active
           </button>
           <button
-            onClick={() => setActiveTab('archived')}
+            onClick={() => { setActiveTab('archived'); setSelectedInquiry(null); }}
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${
               activeTab === 'archived' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
             }`}
@@ -97,7 +116,7 @@ export default function InquiriesPage() {
 
       <div className="grid md:grid-cols-3 gap-6">
         {/* Inquiries List */}
-        <div className="md:col-span-1 space-y-3 max-h-[calc(100vh-12rem)] overflow-y-auto pr-2">
+        <div className="md:col-span-1 space-y-3 max-h-[calc(100vh-12rem)] overflow-y-auto pr-2 custom-scrollbar">
           {loading ? (
             <div className="text-slate-500 text-sm">Loading...</div>
           ) : inquiries.length === 0 ? (
@@ -131,7 +150,7 @@ export default function InquiriesPage() {
         {/* Detail View */}
         <div className="md:col-span-2">
           {selectedInquiry ? (
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6 sticky top-6">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6 sticky top-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
               <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
                 <div>
                   <h2 className="text-xl font-semibold text-white mb-1">
@@ -207,5 +226,13 @@ export default function InquiriesPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function InquiriesPage() {
+  return (
+    <Suspense fallback={<div className="text-white">Loading...</div>}>
+      <InquiriesContent />
+    </Suspense>
   );
 }

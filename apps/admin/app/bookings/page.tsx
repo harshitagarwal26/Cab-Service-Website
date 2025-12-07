@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 interface Booking {
   id: string;
@@ -23,9 +24,13 @@ interface Booking {
   cabType: { name: string };
 }
 
-export default function BookingsPage() {
+function BookingsContent() {
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get('tab') as 'active' | 'archived') || 'active';
+  const paramId = searchParams.get('id');
+
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [activeTab, setActiveTab] = useState<'active' | 'archived'>('active');
+  const [activeTab, setActiveTab] = useState<'active' | 'archived'>(initialTab);
   const [loading, setLoading] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
@@ -34,12 +39,15 @@ export default function BookingsPage() {
     try {
       const res = await fetch(`/api/bookings?status=${activeTab}`);
       const json = await res.json();
-      setBookings(json.data || []);
+      const list = json.data || [];
+      setBookings(list);
       
-      // Deselect if the selected booking is no longer in the list
-      if (selectedBooking) {
-        const stillExists = (json.data || []).find((b: Booking) => b.id === selectedBooking.id);
-        if (!stillExists) setSelectedBooking(null);
+      // Auto-select booking from URL if available in list
+      if (paramId) {
+        const found = list.find((b: Booking) => b.id === paramId);
+        if (found) {
+          setSelectedBooking(found);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -51,6 +59,14 @@ export default function BookingsPage() {
   useEffect(() => {
     fetchBookings();
   }, [activeTab]);
+
+  // Effect to select booking when list updates (if paramId exists)
+  useEffect(() => {
+    if (paramId && bookings.length > 0 && !selectedBooking) {
+      const found = bookings.find((b) => b.id === paramId);
+      if (found) setSelectedBooking(found);
+    }
+  }, [bookings, paramId]);
 
   const updateStatus = async (id: string, newStatus: string) => {
     if (!confirm(`Are you sure you want to mark this booking as ${newStatus}?`)) return;
@@ -98,7 +114,7 @@ export default function BookingsPage() {
         
         <div className="bg-white/5 p-1 rounded-lg flex gap-1">
           <button
-            onClick={() => setActiveTab('active')}
+            onClick={() => { setActiveTab('active'); setSelectedBooking(null); }}
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${
               activeTab === 'active' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
             }`}
@@ -106,7 +122,7 @@ export default function BookingsPage() {
             Active
           </button>
           <button
-            onClick={() => setActiveTab('archived')}
+            onClick={() => { setActiveTab('archived'); setSelectedBooking(null); }}
             className={`px-4 py-1.5 rounded-md text-sm font-medium transition ${
               activeTab === 'archived' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
             }`}
@@ -128,6 +144,7 @@ export default function BookingsPage() {
               <div
                 key={booking.id}
                 onClick={() => setSelectedBooking(booking)}
+                id={`booking-${booking.id}`}
                 className={`p-4 rounded-xl border cursor-pointer transition-all ${
                   selectedBooking?.id === booking.id
                     ? 'bg-indigo-600/20 border-indigo-500/50'
@@ -162,11 +179,10 @@ export default function BookingsPage() {
         {/* Detail View */}
         <div className="md:col-span-2">
           {selectedBooking ? (
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6 sticky top-6">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6 sticky top-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
               <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
                 <div>
                   <h2 className="text-xl font-semibold text-white mb-1">
-                    {/* UPDATED: Using slice(0, 8) to match customer portal */}
                     Booking #{selectedBooking.id.slice(0, 8).toUpperCase()}
                   </h2>
                   <div className="flex gap-4 text-sm text-slate-400 mt-2">
@@ -292,5 +308,13 @@ export default function BookingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function BookingsPage() {
+  return (
+    <Suspense fallback={<div className="text-white">Loading...</div>}>
+      <BookingsContent />
+    </Suspense>
   );
 }
